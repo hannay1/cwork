@@ -1,0 +1,113 @@
+PHASE 1:
+
+0000000000400f50 <phase_1>:
+  400f50:	48 83 ec 08          	sub    $0x8,%rsp 				//call frame management
+  400f54:	be 20 26 40 00       	mov    $0x402620,%esi 			//$ = constant, % = register --> move constant at 0x402620 to register esi --> prepare second parameter for string_not_equal
+  400f59:	e8 3a 04 00 00       	callq  401398 <strings_not_equal>	// call to function
+  400f5e:	85 c0                	test   %eax,%eax					//bitwise and of two operands, sets flags to 1 if satisfied, otherwise 0. EAX IS RETURN REGISTER
+  400f60:	74 05                	je     400f67 <phase_1+0x17>		// test (same),(same) + je checks parameter and jumps if it is satisfied. if s_n_e returns 0, jump to 0x400f67
+  400f62:	e8 c6 06 00 00       	callq  40162d <explode_bomb>
+  400f67:	48 83 c4 08          	add    $0x8,%rsp				//call frame management
+  400f6b:	c3                   	retq  
+
+
+C code: 
+  char *answer = "Silly quote";
+
+  int phase1(char *inp)
+  {
+  	int x = string_not_equal(inp, answer);
+  	if(!x)
+  		explode_bomb();
+  }
+
+
+  PHASE 2:
+
+  0000000000400f6c <phase_2>:
+  400f6c:	55                   	push   %rbp 			// push rbp onto stack --> push moves stack pointer down. sub moves rsp down a bunch
+  400f6d:	53                   	push   %rbx 			// push rbx onto stack
+  400f6e:	48 83 ec 28          	sub    $0x28,%rsp 		// sub from stack -- creates space on stack
+  400f72:	48 89 e6             	mov    %rsp,%rsi
+  400f75:	e8 e9 06 00 00       	callq  401663 <read_six_numbers>
+  //after read_six_numbers
+  400f7a:	83 3c 24 00          	cmpl   $0x0,(%rsp) //parenthesis --> go to memeory location, rsp points to 0 position of array. x/d $rsp. first number is therefore 0
+  400f7e:	79 24                	jns    400fa4 <phase_2+0x38>
+  400f80:	e8 a8 06 00 00       	callq  40162d <explode_bomb>
+  400f85:	eb 1d                	jmp    400fa4 <phase_2+0x38>
+  400f87:	89 d8                	mov    %ebx,%eax
+  400f89:	03 45 fc             	add    -0x4(%rbp),%eax
+  400f8c:	39 45 00             	cmp    %eax,0x0(%rbp) //compare rbp
+  400f8f:	74 05                	je     400f96 <phase_2+0x2a>
+  400f91:	e8 97 06 00 00       	callq  40162d <explode_bomb>
+  400f96:	83 c3 01             	add    $0x1,%ebx
+  400f99:	48 83 c5 04          	add    $0x4,%rbp
+  400f9d:	83 fb 06             	cmp    $0x6,%ebx
+  400fa0:	75 e5                	jne    400f87 <phase_2+0x1b>
+  400fa2:	eb 0c                	jmp    400fb0 <phase_2+0x44>
+  400fa4:	48 8d 6c 24 04       	lea    0x4(%rsp),%rbp //rsp is now index 1,  pointer to index 1 of array into rbx
+  400fa9:	bb 01 00 00 00       	mov    $0x1,%ebx
+  400fae:	eb d7                	jmp    400f87 <phase_2+0x1b>
+  400fb0:	48 83 c4 28          	add    $0x28,%rsp 		//// add back to stack -- delete space from earlier
+  400fb4:	5b                   	pop    %rbx 			//pop rbx out of stack
+  400fb5:	5d                   	pop    %rbp 			//same
+  400fb6:	c3                   	retq 					//return to main
+
+  0000000000401663 <read_six_numbers>:
+  401663:	48 83 ec 18          	sub    $0x18,%rsp
+  401667:	48 89 f2             	mov    %rsi,%rdx 			///move rsi to 3rd param (rdx) of sscanf 
+
+  40166a:	48 8d 4e 04          	lea    0x4(%rsi),%rcx	// lea: "add 4 to rsi, store in rcx". rsi is pointing to array. LEA manipulates data in rsi, puts in rcx. mov just moved data
+  40166e:	48 8d 46 14          	lea    0x14(%rsi),%rax
+  401672:	48 89 44 24 08       	mov    %rax,0x8(%rsp)
+  401677:	48 8d 46 10          	lea    0x10(%rsi),%rax
+  40167b:	48 89 04 24          	mov    %rax,(%rsp)
+  40167f:	4c 8d 4e 0c          	lea    0xc(%rsi),%r9 
+  401683:	4c 8d 46 08          	lea    0x8(%rsi),%r8 //next lea
+  401687:	be e9 28 40 00       	mov    $0x4028e9,%esi
+  40168c:	b8 00 00 00 00       	mov    $0x0,%eax
+
+  401691:	e8 da f5 ff ff       	callq  400c70 <__isoc99_sscanf@plt>
+  401696:	83 f8 05             	cmp    $0x5,%eax
+  401699:	7f 05                	jg     4016a0 <read_six_numbers+0x3d>
+  40169b:	e8 8d ff ff ff       	callq  40162d <explode_bomb>
+  4016a0:	48 83 c4 18          	add    $0x18,%rsp
+  4016a4:	c3                   	retq
+
+
+  sscanf("142 4.2", "%D, %F", &x, &y) //&x = address of x in memmory. sscanf checks how many numbers can be formatted correctly
+
+
+  void phase_2(char *imp)
+  {
+  	int arr[6];
+  	read_six_numbers(inp, &arr);
+  	int i;
+  	while(i < 5)
+  	{
+  	 	if(int arr[i] != i + arr[i - 1])
+  	 	{
+  	 		explode_bomb();
+  	 	}
+  	 	
+  	}
+  	return;
+  }
+
+
+
+
+  JUMP TIP:
+
+  if second is greater/less than than first, do jump 
+
+aka
+  second operand, jump type, first operand, do jump 
+
+  lea:
+
+  rsi
+
+  phase 3: switch
+
+  j*  operand --> jump to location in memory, where there is another address

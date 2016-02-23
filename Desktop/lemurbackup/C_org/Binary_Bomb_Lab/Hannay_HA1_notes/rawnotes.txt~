@@ -1,0 +1,265 @@
+
+Honor Assignment 1 
+Bomb phase 3 + 4
+ Hannay Al-Mohanna
+RAW NOTES
+
+These were my notes, documenting my thoughts throughout the assignment: 
+
+Phase 3: 
+Answers: 0 -94, 1 -551, 5 -822
+
+--> break *$0x4028f5
+--> x/s $esi --> 0x604860 <input_strings+160>:	"0 -94" //my input
+
+The following suggests the input consists of two integers:
+--> p (char *) $0x4028f5 --> 0x4028f5 "%d %d"
+
+The next line moves the value 0 into the eax register:
+-->break *0x400fca 
+x/s $eax -->0x604860 <input_strings+160> "0 1"
+-->break *0x400fcf
+p $eax --> 0
+
+
+The next lines are of importance:
+
+400fcf:		e8 9c fc ff ff       	callq  400c70 <__isoc99_sscanf@plt>
+400fd4:	83 f8 01             	cmp    $0x1,%eax
+400fd7:	7f 05                	jg     400fde <phase_3+0x27>
+
+After sscanf, the machine is told that"if the value of eax is greater than 1, jump to 0x400fde".
+This is checking if the number of integers given to the bomb was greater than 1. Ours was, 
+so we set a breakpoint there.
+
+-> break *0x400fde
+
+400fde:	83 7c 24 08 07       	cmpl   $0x7,0x8(%rsp)
+400fe3:	77 64                	ja     401049 <phase_3+0x92>
+
+The program compares the value at rsp, to 7 and jumps to the next address if the value as rsp is greater 
+than 7. At address 0x401049, there is a call to explode_bomb(). Therefore, the value that lies 8 bytes ahead of the first integer entered must be smaller than/equal to 7. So effectively, the first integer must be 0.  Thankfully the input satisfies this (0), and we are able to stepi until 0x400fe5. 
+We know that entering the first integer as 0 works, so until that screws up,the first integer we will enter will be 0.
+
+A pattern is apparent after 0x400ff7. A value found at the address that is 8 bytes from the stack pointer 
+is moved to eax, and then jmpq * signifies that a branch table is in use, which  allows for transferring control between various parts of a procedure. 0x402690 can be taken as a pointer to an array, storing values of 8 bytes. This, coupled with the repetitions of mov, (arithmetic), and jmp suggests that a switch case is in use.
+
+stepi once more to the jmpq instruction, and examine eax and (As an address). The address based on our input specified by jmpq is  0x402690.
+
+p* $eax = 0 //our first integer
+x/a 0x402690 -->  0x400ff7 <phase_3+64>
+
+This leads us to the following:
+
+0x0000000000400ff7 <+64>:	mov    $0x1c9,%eax
+0x0000000000400ffc <+69>:	sub    $0x3f,%eax
+0x0000000000400fff <+72>:	jmp    0x401006 <phase_3+79>
+
+Let us first establish that what we entered first as the first integer is still held in eax following jumpq
+
+p $eax = 0
+
+We then move the value 457 into eax, so at 0x400ffc, eax is 457. At 0x400ffc, we subtract 63 from eax, so at 0x400fff, eax is 394.
+
+The next jump sends us to 0x401006, which adds 334 to eax, resulting in 728 prior to the jump to 0x401012.
+
+A sub instruction awaits, subtracting 822 from eax (-94), followed by a jump to 0x40101e, which adds 822 back to -94 (eax = 728). Another jump repeats this, so eax is -94 at 0x40102f. We then add 822 back again, resulting in 728 again. 822 is subtracted from eax (eax = -94) before a jump to a cmpl instruction:
+
+
+=> 0x0000000000401053 <+156>:	cmpl   $0x5,0x8(%rsp)
+   0x0000000000401058 <+161>:	jg     0x401060 <phase_3+169>
+   0x000000000040105a <+163>:	cmp    0xc(%rsp),%eax
+   0x000000000040105e <+167>:	je     0x401065 <phase_3+174>
+   0x0000000000401060 <+169>:	callq  0x40162d <explode_bomb>
+   0x0000000000401065 <+174>:	add    $0x18,%rsp
+   0x0000000000401069 <+178>:	retq  
+
+We can see that to diffuse the bomb, we need to direct ourselves to 0x401065. Seeing as eax = -94, let's try that as our second integer. This diffuses the bomb.
+
+However, due to the fact that jmpq can direct control flow, there must be multiple answers.
+
+
+
+
+
+
+
+
+
+Let's see what the expected input would be with a 1st integer of 1:
+
+let's try with 1st integer 1. this should happen:
+
+if 1st integer is 1, we move to: 
+
+0x0000000000400ff0 <+57> mov    $0x0,%eax
+
+which moves 0 into eax and results in these arithmetic steps being executed:
+
+stepi
+
+jump to 0x0000000000400ffc, subtract 63 from value in eax
+(eax = -63)
+stepi
+jump to 0x0000000000401006, add 334 to value in eax
+(eax = 271)
+stepi
+jump to 0x0000000000401012, add 882 to value in eax
+(eax = -611)
+stepi
+jump to 0x000000000040101e, add 882 to value in eax
+(eax = 271)
+stepi
+jump to 0x000000000040102a, sub 882 to value in eax
+(eax = -611)
+jump to 0x0000000000401036, add 882 to value in eax
+(eax = 271)
+jump to 0x0000000000401042, sub 882 from value in eax
+(eax = -551)
+
+compare the value found 8 bytes from rsp to 5, if greater than,
+jump to explode,
+compare the value found 12 bytes from rsp to eax, if equal,
+diffuse bomb. 2nd Value is -511 (eax), 1st value is 1.
+
+Enter 1 -551, it works yay
+
+
+
+PHASE 4:
+
+	0x00000000004010a8 <+0>:	sub    $0x18,%rsp
+   0x00000000004010ac <+4>:	lea    0xc(%rsp),%rcx
+   0x00000000004010b1 <+9>:	lea    0x8(%rsp),%rdx
+   0x00000000004010b6 <+14>:	mov    $0x4028f5,%esi
+   0x00000000004010bb <+19>:	mov    $0x0,%eax
+   0x00000000004010c0 <+24>:	callq  0x400c70 <__isoc99_sscanf@plt>
+   0x00000000004010c5 <+29>:	cmp    $0x2,%eax
+   0x00000000004010c8 <+32>:	jne    0x4010d1 <phase_4+41>
+   0x00000000004010ca <+34>:	cmpl   $0xe,0x8(%rsp)
+   0x00000000004010cf <+39>:	jbe    0x4010d6 <phase_4+46>
+   0x00000000004010d1 <+41>:	callq  0x40162d <explode_bomb>
+   0x00000000004010d6 <+46>:	mov    $0xe,%edx
+   0x00000000004010db <+51>:	mov    $0x0,%esi
+   0x00000000004010e0 <+56>:	mov    0x8(%rsp),%edi
+   0x00000000004010e4 <+60>:	callq  0x40106a <func4>
+   0x00000000004010e9 <+65>:	cmp    $0x4,%eax
+   0x00000000004010ec <+68>:	jne    0x4010f5 <phase_4+77>
+   0x00000000004010ee <+70>:	cmpl   $0x4,0xc(%rsp)
+   0x00000000004010f3 <+75>:	je     0x4010fa <phase_4+82>
+   0x00000000004010f5 <+77>:	callq  0x40162d <explode_bomb>
+   0x00000000004010fa <+82>:	add    $0x18,%rsp
+   0x00000000004010fe <+86>:	retq
+
+The first instruction of concern would be: 
+
+0x00000000004010b6 <+14>:	mov    $0x4028f5,%esi
+
+let's examine the contents of $0x4028f5, as it is 
+will contain a format that the sscanf function will
+take as input parameters
+
+x/s 0x4028f5 --> %d %d". so we need two integers it 
+further on, two compare instructions await:
+0x00000000004010c5 <+29>:	cmp    $0x2,%eax
+   0x00000000004010c8 <+32>:	jne    0x4010d1 <phase_4+41>
+   0x00000000004010ca <+34>:	cmpl   $0xe,0x8(%rsp)
+   0x00000000004010cf <+39>:	jbe    0x4010d6 <phase_4+46>
+   0x00000000004010d1 <+41>:	callq  0x40162d <explode_bomb>
+1.so first we compare 2 with the contents of eax,
+then we jump if these are not equal to a bomb. This checks if we entered two numbers (checks for valid input, like in phase_3.
+
+2.then we compare the second number 0x8(%rsp) (value found 8 bytes from stack pointer)
+with 15. if it is less then or equal to 15 (unsigned ints, so only x > 0), it 
+moves on, moving 15 to the 3rd arugment of a function (edx), 0 into the second argument register (esi), then the second number into the 1st argument of the function (edi).
+
+Then a call to func4
+
+0x00000000004010d6 <+46>:	mov    $0xe,%edx
+   0x00000000004010db <+51>:	mov    $0x0,%esi
+   0x00000000004010e0 <+56>:	mov    0x8(%rsp),%edi
+   0x00000000004010e4 <+60>:	callq  0x40106a <func4>
+
+
+func_4 asm:
+
+0x000000000040106a <+0>:	sub    $0x8,%rsp
+   0x000000000040106e <+4>:	mov    %edx,%eax // eax = 2 mov (edx = 14) = 14.
+   0x0000000000401070 <+6>:	sub    %esi,%eax // eax = 14 (eax) - (2nd func4 arg= 0) = 14
+   0x0000000000401072 <+8>:	mov    %eax,%ecx // ecx = 14 mov (ecx = 32) = 14
+   0x0000000000401074 <+10>:	shr    $0x1f,%ecx // logical right shift 14 by 31, ecx = 0
+   0x0000000000401077 <+13>:	add    %ecx,%eax //add ecx (0) to eax (14), eax = 14
+   0x0000000000401079 <+15>:	sar    %eax //eax = arithmetic shift right, eax = 7
+   0x000000000040107b <+17>:	lea    (%rax,%rsi,1),%ecx //(7,0,1), ecx = 0 before....
+   0x000000000040107e <+20>:	cmp    %edi,%ecx //compare 7 with 2, if 7 l/e 2, jump 
+   0x0000000000401080 <+22>:	jle    0x40108e <func4+36>
+   0x0000000000401082 <+24>:	lea    -0x1(%rcx),%edx //subtract 1 from rcx, put in edx
+   0x0000000000401085 <+27>:	callq  0x40106a <func4> //edx = 6… I am not seeing it.
+   0x000000000040108a <+32>:	add    %eax,%eax
+   0x000000000040108c <+34>:	jmp    0x4010a3 <func4+57> //this is one recursive call, if eax = some value
+   0x000000000040108e <+36>:	mov    $0x0,%eax
+   0x0000000000401093 <+41>:	cmp    %edi,%ecx
+   0x0000000000401095 <+43>:	jge    0x4010a3 <func4+57>
+   0x0000000000401097 <+45>:	lea    0x1(%rcx),%esi
+   0x000000000040109a <+48>:	callq  0x40106a <func4> //recursive call 2 if eax is some other value
+   0x000000000040109f <+53>:	lea    0x1(%rax,%rax,1),%eax
+   0x00000000004010a3 <+57>:	add    $0x8,%rsp
+   0x00000000004010a7 <+61>:	retq
+
+   first, let's stepi + stepi and then p $eax.
+   eax = 14
+
+
+  `0x00000000004010e4 <+60>:	callq  0x40106a <func4>
+   0x00000000004010e9 <+65>:	cmp    $0x4,%eax
+   0x00000000004010ec <+68>:	jne    0x4010f5 <phase_4+77>
+   0x00000000004010ee <+70>:	cmpl   $0x4,0xc(%rsp)
+   0x00000000004010f3 <+75>:	je     0x4010fa <phase_4+82>
+   0x00000000004010f5 <+77>:	callq  0x40162d <explode_bomb>
+   0x00000000004010fa <+82>:	add    $0x18,%rsp
+   0x00000000004010fe <+86>:	retq 
+
+   
+x/d $rsp + 0xc = 2nd number
+
+After func4, we compare 4 with eax (return value of func4), if 4 is not equal to the value in eax, the program detonates. func_4(1st int, 0, 14 ) must return 4.
+Then, if 4 is the value of the second integer (x/d $rsp + 0xc), the program difuses.
+
+so second number is 4.
+
+
+   0x000000000040107e <+20>:	cmp    %edi,%ecx
+=> 0x0000000000401080 <+22>:	jle    0x40108e <func4+36>
+   0x0000000000401082 <+24>:	lea    -0x1(%rcx),%edx
+   0x0000000000401085 <+27>:	callq  0x40106a <func4>
+
+   This is the first recursive step. We know that we need func4 to ultimately
+   return a value of 4. So checking eax at the specified address (p $eax) before each call
+   will show the values at each step, until func4 returns to phase 4. It seems to take 4 times, 
+   and 14 is halved (int division) 4 times it seems
+
+   1st: 7
+   2nd: 3
+   3rd: 1
+   4th: 0
+
+	Alright. now let's set a break for the address after the 1st recursive call
+	break *0x000000000040108a
+
+
+=> 0x000000000040108a <+32>:	add    %eax,%eax
+   0x000000000040108c <+34>:	jmp    0x4010a3 <func4+57>
+   0x000000000040108e <+36>:	mov    $0x0,%eax
+   0x0000000000401093 <+41>:	cmp    %edi,%ecx
+   0x0000000000401095 <+43>:	jge    0x4010a3 <func4+57>
+   0x0000000000401097 <+45>:	lea    0x1(%rcx),%esi
+   0x000000000040109a <+48>:	callq  0x40106a <func4>
+
+   Here, p $eax = 1. So 1 + 1 = 2 in eax
+   we then jump....back to phase_4?
+
+   alright, setting a break for 0x000000000040108e, p $eax = 1,
+   move 0 to eax, eax = 0.
+	
+the only valid answer seems to be: 2 4, this seems to be hardcoded into the phase_4 procedure.
+

@@ -1,0 +1,42 @@
+STEP 1: (PTR TO) ADDRESS OF INSTRUCTION AFTER CURRENT FUNC
+STEP 2: PUT (PTR TO) ADDRESS IN RSP
+STEP 3: MOVE RSP DOWN 1 (RSP -8) ---> CALL : RSP DOWN, RET --> RSP UP
+STEP 4: SET RIP AS (PTR TO) ADDRESS OF CURRENT FUNC
+
+any local variable --> stack
+malloc ---> heap
+constants ---> code/constants
+
+
+in x86, parameters are defined as pointers (8 bits)
+
+registers:
+	caller func saved
+	callee func saved
+
+	push %rbx --> put rbx in rsp, move rsp down 8
+	pop %rbx --> reverse
+
+
+rbp --> top of stack
+
+/* rbp + rsp bracket out
+
+params on stack */
+
+
+rsp --> bottom of stack
+
+if caller has valuble data in caller saved register,
+there will be a call to push onto stack, and then a call to pop
+back  off
+
+
+step1: beginning of getbuf, rsp:
+0x55645410
+
+1st instr in touch1:
+0x0000000041be
+
+
+Step 1: change return address to touch1...

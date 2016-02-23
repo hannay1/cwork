@@ -1,0 +1,275 @@
+/*
+
+NOT ACTUAL C. CAN'T COMPILE
+
+These are my final notes + sketches
+on phase 3/4, I also have my longer notes
+included in rawnotes.txt.
+
+
+PHASE 3:
+
+VALID ANSWERS: 0 -94, 1 -511, 5 -822
+
+IMPLEMENTS: a switch statement
+
+This phase basically takes the 1st integer,
+parses it through a switch statement
+that seems to lack any breaks,
+and applies a series of arithmetic steps
+based on the 1st integer,until 
+a second integer is deduced at the end of the
+switch statement, sort of like a key:value pair.
+
+check 
+here is the suspected pseudocode for phase_3
+*/
+
+
+void phase_3(String input)
+{
+	int arr[2]; //make array to hold our 2 ints
+	int i1 = arr[0]; //first input
+	int i2 = arr[1]; //second input
+	int a = sscanf(input, "%d, %d", &i1, &i2);
+	if(a > 1) //checks if more than two ints were entered
+	{
+		explode_bomb();
+
+	}
+
+	if(i1 > 7) //checks if 1st int is > 7
+	{
+		explode_bomb();
+	}
+
+	ans = i2;
+
+	switch(i1)
+	{
+		/*
+
+		this part might be a little 
+		funky. but following some 
+		sort of variation of the below 
+		got me 3 right answers.
+
+		the switch cases dont seem to 
+		have any breaks. so jmpq
+		kind of sets a starting 
+		point for this cascade
+		of bs arithmetic to occur,
+		eventually giving a valid second 
+		number. neat
+
+		*/
+		case 0:
+			ans = 0;
+		case 1:
+			ans = 457; 
+			ans = ans- 63; 
+		case 2:
+			ans = 0;
+			ans = ans - 334;
+		case 3:
+			ans = 0;
+			ans = ans - 822; 
+		case 4:
+			ans = 0;
+			ans = ans + 822; 
+		case 5:
+			ans = 0;
+			ans = ans - 822;  
+		case 6:
+			ans = 0;
+			ans = ans + 822;
+		case 7:
+			ans = 0;
+			ans = ans - 822;
+
+
+	}
+
+	if(i1 < 5)
+	{
+		// this is cmpl $0x5,0x8(%rsp) etc
+		explode_bomb(); 
+		//only 5/7 cases allowed, alright then
+	}
+	
+	if(i2 == ans)
+	{
+		//if the 2nd integer matches, we win
+		return;
+	}
+
+}
+
+/*
+
+PHASE 4:
+
+VALID ANSWER: 2 4
+
+Implements: Recursion, that's for sure.
+
+Exactly to what end, I am not sure.
+The numbers 0 and 14 are used as a sort 
+of counter to the recursive function,
+so maybe some sort of comparrison? I 
+could not decicively figure out WHY
+this function does what it does,
+but the following logic, and a little guessing,
+got me the right answer.
+
+this phase needs two integers.
+The second integer can be deduced easily 
+from here:
+
+ 0x4010ee <+70>:	cmpl   $0x4,0xc(%rsp)
+ 0x4010f3 <+75>:	je     0x4010fa <phase_4+82>
+ 0x4010f5 <+77>:	callq  0x40162d <explode_bomb>
+ 0x4010fa <+82>:	add    $0x18,%rsp
+ 0x4010fe <+86>:	retq
+
+
+turns out that the value stored 12 bytes from the stack pointer
+is our 2nd integer (0xc(%rsp), 
+and it needs to be 4 
+for the program to diffuse 
+assuming valid 1st number.
+
+func4 is a recursive procedure that
+takes in the 1st integer, 0 ,and 14 as args,
+and if the return value is equal to 4, which seems to be
+a count of the number of recursive calls made by func_4
+, the 1st integer is valid.
+
+*/
+
+void phase_4(String input)
+{
+	int arr[2]; //make array to hold our 2 ints
+	int i1 = arr[0]; //first input
+	int i2 = arr[1]; //second input
+	int a = sscanf(input, "%d, %d", i1, i2); // x/s 0x4028f5 --> %d %d" in phase_4
+
+	if(i1 <= 14) //checks 1st int
+	{
+		int a = func4(i1, 0, 14); //recursion. must = 4 to be valid
+		if(a != 4 || i2 != 4)
+		{
+			explode_bomb();
+
+		}else
+		{
+			return;
+		}
+
+	}
+	else
+	{
+		explode_bomb();
+	}
+	
+}
+
+int func4(int i1, int zero, int fourteen)
+{
+	/*
+
+	my attempt to explain func4. I do not know
+	how, but parsing 2 into here as $i1 results in the 
+	value the program wants (4). using other values
+	does not seem to make any sort of pattern evident
+	*/
+
+	int counter = 0;
+
+	/*
+	some arithmetic
+	carried out on
+	1st integer, 
+	I did not make note of any sort of pattern,
+	other than the fact that the number
+	14 was essentially halved (integer division)
+	4 times to get a correct answer,
+
+	*/
+	
+
+
+	if(i1 == /* some value */)
+	{
+		i1 = func4(i1, 0, 14);
+		counter++;
+	}
+
+	if(i1 = /* some other value*/)
+	{
+		i1 = func4(i1, 0 14);
+		counter++;
+	}
+
+	return i1;
+
+}
+
+/*
+
+So we should note that the 2nd integer must be 4,
+and the 1st must be a value that will result in
+func4 returning a value of 4, which was found to be
+2.
+
+I was able to map out
+a set of return values based on 
+the 1st integer, just after func4
+is called in phase_4 (0x4010e9 in phase_4, the cmp instruction):
+
+1st value(%edi) (cmp) return value of func4 (%eax)
+	1						0
+	2						4 VALID
+	3						0
+	4						2
+	5						2
+	6						6
+	7						0
+	8						1
+	9						1
+	10						5
+	11						1
+
+	The only valid integers seem to be 2 and 4:
+
+	0x00000000004010e9 <+65>:	cmp    $0x4,%eax  //first int check
+   0x00000000004010ec <+68>:	jne    0x4010f5 <phase_4+77>
+   0x00000000004010ee <+70>:	cmpl   $0x4,0xc(%rsp) //second int check
+   0x00000000004010f3 <+75>:	je     0x4010fa <phase_4+82>
+   0x00000000004010f5 <+77>:	callq  0x40162d <explode_bomb>
+   0x00000000004010fa <+82>:	add    $0x18,%rsp
+   0x00000000004010fe <+86>:	retq
+
+ it seems that unless I explicitly put 2 in as the 1st valiue, 
+ I get some weird corresponding
+   values that are discarded anyway,
+   because the 2nd integer hard coded as 4,
+   and the 1st integer is hard coded to make sure
+   func_4 returns 4.
+
+*/
+
+
+   
+
+
+
+
+1 2 3 4 5 6
+
+1 3 2 4 6 5
+
+6 5 4 3 2 1
+5 6 3 4 1 2
+
+

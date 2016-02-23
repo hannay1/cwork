@@ -1,0 +1,163 @@
+SYMBOL TABLE:
+
+objdump -d (executable)
+
+first number is 64 bit address
+
+Address space :
+{	
+	Stack --> heap --> code/constants
+}
+
+
+x86-64 assembly code:
+
+Register file in processor:
+
+		registers:
+
+|------| rsp -->stack pointer. points to location in memory where local variables for func
+
+|------| rax --> return value of function stored in rax
+
+|------| rip --> instruction pointer --> stores address of next instruction to be executed 
+
+|------| rdx -->
+
+|------| test -->bitwise and of two operands
+
+|------| je --> takes result, either jumps to next instruction or goes to specified adress. je specifically looks at the 0 bit. if 0 is set, it will jump, if not, it go to specified function
+
+|------| move -->
+
+
+r prefix --> 64 bit
+e prefix --> 32 bit
+
+i.e
+
+rcx and ecx OVERLAP. calling ecx will yield 32 bit portion of rcx
+
+cannot access address of registers -- they are locations in register file
+
+example:
+
+400b18:	48 83 ec 08          	sub    $0x8,%rsp
+
+
+MACHINE CODE:
+* address:
+
+400b18 --> address of character
+
+* instructions 
+
+48 83 ec 08 --machine code
+
+byte encoding of instructions
+
+
+ASSEMBLY CODE:
+* instructions:
+
+sub		$0x8, %rsp --> "subtract 8 from value in rsp register, then put result in rsp register"
+		$ -- constant
+		% -- value at register
+
+mov
+
+once all registers have been used, variables are stored in ram with an associated call frame
+
+
+GDB:
+run-- run through program
+
+break (func) --set breakpoint that pauses program before function is called. b *(hex address) to set break at said address/assembly instruction
+
+backtrace --shows the stack, shows fuction currently on stack
+
+info b -- shows breakpoints, "delete (breakpoint n)" to delete breakpoint
+
+info r -- shows content of all registers
+
+next -- go to next line in source code
+
+print (variable) -- see variable. also see registry, eg print $eax
+
+stepi-- fo to next assembly/machine instruction. shows address of function executed, its byte offset (number of bytes) from the beginning of the function called, and the corresponding line of source code
+
+x-----command for examining memory, /s assuumes a c string
+
+set $(register) = 0 --set register to specified value
+
+disas --shows assembly code for function called
+
+
+
+
+
+
+
+
+
+HOW TO NEVER EXPLODE:
+
+break explode_bomb (breakpoint n at 0x4015bd)
+
+in 64 bit, first two parameters go in edi first, then esi.
+
+
+ PASSWORD 1: Border relations with Canada have never been better.
+
+mov    $0x4028e9,%esi --what is in esi?
+mov    $0x0,%eax
+callq  0x400c70 <__isoc99_sscanf@plt>
+
+
+sscanf takes 4 arguments
+
+ isoc99_vsscanf (string=0x604810 <input_strings+80> "g", 
+    format=0x4028e9 "%d %d %d %d %d %d", args=0x7fffffffdee0)
+
+    0x7fffffffdee0 ---> points to 6 numbers
+
+
+
+callq  0x401663 <read_six_numbers>
+
+cmpl   $0x0,(%rsp) 
+--> comparison must be 0. our value is stores in rsp
+jns    0x400fa4 <phase_2+56> ---> jumps if SF set to 0
+-->go to  0x400fa4 if sign of eflags
+from cmpl is NOT 0 
+
+callq  0x40162d <explode_bomb> --> or explode bomb
+
+jmp    0x400fa4 <phase_2+56>
+.
+.
+.
+lea    0x4(%rsp),%rbp //rbp gets address of next number in %rsp
+mov    $0x1,%ebx
+jmp    0x400f87 <phase_2+27>
+
+.
+.
+.
+
+(gdb) p $rsp+0x4 --> lets see the number here...
+$1 = (void *) 0x7fffffffdf14
+(gdb) p $rsp
+$2 = (void *) 0x7fffffffdf10
+
+
+14 - 10 = 4, int is 4 bytes
+
+
+void phase_2(input)
+
+    
+
+
+
+
